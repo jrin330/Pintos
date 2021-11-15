@@ -119,7 +119,9 @@ sema_up (struct semaphore *sema)
                                 struct thread, elem));
   }
   sema->value++;
+#ifndef USERPROG
   preemption();
+#endif
   intr_set_level (old_level);
 }
 

@@ -4,14 +4,21 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/flags.h"
 #include "threads/synch.h"
 #include "threads/fixed_point.h"
 #include "devices/timer.h"
-#include "lib/kernel/list.h"
+#include "threads/interrupt.h"
+#include "threads/intr-stubs.h"
+#include "threads/palloc.h"
+#include "threads/switch.h"
+#include "threads/vaddr.h"
+
 
 #ifndef USERPROG
 extern bool thread_prior_aging;
 #endif
+extern fixed load_avg;
 
 /* States in a thread's life cycle. */
 enum thread_status

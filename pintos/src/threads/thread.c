@@ -17,8 +17,8 @@
 
 #ifndef USERPROG
 bool thread_prior_aging;
-fixed load_avg;
 #endif
+fixed load_avg;
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -236,14 +236,12 @@ thread_block (void)
 void
 thread_sleep(int64_t tick){
   struct thread *cur = thread_current();
-  enum intr_level old_level = intr_disable();
 
   if(cur == idle_thread) return ;
-
+  enum intr_level old_level = intr_disable();
   cur->blocked_time = tick;
   list_push_back(&block_list, &cur->elem);
   thread_block();
-
   intr_set_level(old_level);
 
 }
@@ -259,15 +257,14 @@ thread_sleep(int64_t tick){
 void
 thread_unblock (struct thread *t) 
 {
-  enum intr_level old_level;
-
   ASSERT (is_thread (t));
 
-  old_level = intr_disable ();
+  enum intr_level old_level = intr_disable();
   ASSERT (t->status == THREAD_BLOCKED);
+
   list_insert_ordered(&ready_list, &t->elem, compare_priority_by_elem, NULL);
   t->status = THREAD_READY;
-  intr_set_level (old_level);
+  intr_set_level(old_level);
 }
 
 void
@@ -487,25 +484,30 @@ thread_get_recent_cpu (void)
 void
 set_new_recent_cpu(struct thread *t, void *aux UNUSED){
   if(t == idle_thread) return;
-
+  enum intr_level old_level = intr_disable();
   fixed coeffi[2];
   fixed tmp = mult_btw_diff(load_avg, 2);
+  fixed new_recent_cpu;
   coeffi[0] = tmp;
   coeffi[1] = add_btw_diff(tmp, 1);
 
-  t->recent_cpu = mult_btw_fixed(div_btw_fixed(coeffi[0], coeffi[1]),t->recent_cpu);
-  t->recent_cpu = add_btw_diff(t->recent_cpu, t->nice);
+  new_recent_cpu = mult_btw_fixed(div_btw_fixed(coeffi[0], coeffi[1]),t->recent_cpu);
+  new_recent_cpu = add_btw_diff(t->recent_cpu, t->nice);
+  intr_set_level(old_level);
+  t->recent_cpu = new_recent_cpu;
 }
 
 void
 set_new_priority(struct thread *t, void *aux UNUSED){
   if(t == idle_thread) return;
+  enum intr_level old_level = intr_disable();
   fixed new_p = int_to_fixed(PRI_MAX);
   fixed recent_cpu = div_btw_diff(t->recent_cpu, 4);
   int nice = t->nice * 2;
 
   new_p = sub_btw_fixed(new_p, recent_cpu);
   new_p = sub_btw_diff(new_p, nice);
+  intr_set_level(old_level);
   t->priority = fixed_to_int(new_p);
 }
 
@@ -605,14 +607,14 @@ init_thread (struct thread *t, const char *name, int priority)
   t->recent_cpu = 0;
 #ifdef USERPROG
   list_init(&t->child_list);
-  list_push_back(&(running_thread()->child_list), *t->child_elem);
+  list_push_back(&(running_thread()->child_list), &t->child_elem);
   t->parent = running_thread();
   if(t->parent != NULL){
     t->nice = t->parent->nice;
     t->recent_cpu = t->parent->recent_cpu;
   }
   t->exit_status = 0;
-  sema_init((&t->child_done), 0);
+  sema_init(&t->child_done, 0);
   sema_init(&t->removal_complete, 0);
   sema_init(&t->child_load, 0);
 
