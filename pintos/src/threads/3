@@ -397,11 +397,14 @@ void thread_aging(void){
       coeffi[1] = div_btw_fixed(int_to_fixed(1), int_to_fixed(60));
       load_avg = mult_btw_fixed(coeffi[0], load_avg);
       int weight=0;
+      printf("list size : %d\n",list_size(&ready_list));
       if(thread_current() == idle_thread){
         weight = list_size(&ready_list);
+	printf("is idle %d\n",weight);
       }
       else{
 	weight = list_size(&ready_list) + 1;
+	printf("is not idle %d\n",weight);
       }
       load_avg = add_btw_fixed(load_avg, mult_btw_diff(coeffi[1], weight));
       thread_foreach(set_new_recent_cpu, NULL);
@@ -482,11 +485,14 @@ set_new_recent_cpu(struct thread *t, void *aux UNUSED){
   if(t == idle_thread) return;
   fixed coeffi[2];
   fixed tmp = mult_btw_diff(load_avg, 2);
+  fixed new_recent_cpu;
   coeffi[0] = tmp;
   coeffi[1] = add_btw_diff(tmp, 1);
 
-  t->recent_cpu = mult_btw_fixed(div_btw_fixed(coeffi[0], coeffi[1]),t->recent_cpu);
-  t->recent_cpu = add_btw_diff(t->recent_cpu, t->nice);
+  new_recent_cpu = mult_btw_fixed(div_btw_fixed(coeffi[0], coeffi[1]),t->recent_cpu);
+  new_recent_cpu = add_btw_diff(t->recent_cpu, t->nice);
+  t->recent_cpu = new_recent_cpu;
+  printf("recent cpu %d\n",t->recent_cpu);
 }
 
 void
