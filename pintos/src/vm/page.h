@@ -21,10 +21,8 @@ struct pte{
 struct pte* add_pte(void *vaddr, bool writable);
 struct pte* get_pte(void *addr);
 bool push_page(void *fault_addr);
-bool evict_page(void *fault_addr);
-uint32_t get_pte_info(uint32_t *pd, struct pte* pte);
-
+bool evict_page(struct pte *pte);
 
 uint32_t page_hash(const struct hash_elem *e, void *aux);
-bool page_less(const struct hash_elem *a, const struct hash_elem *b);
+bool page_less(const struct hash_elem *a, const struct hash_elem *b, void *aux);
 #endif

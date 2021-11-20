@@ -3,70 +3,72 @@
 #include "threads/palloc.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "vm/frame.h"
 #include "threads/malloc.h"
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
 #include "threads/vaddr.h"
+#include "vm/swap.h"
 
 
 struct pte* add_pte(void *vaddr, bool writable){
-  struct pte *p = malloc(sizeof *p);
-  if(p == NULL) return NULL;
+  struct pte *pte = malloc(sizeof *pte);
+  if(pte == NULL) return NULL;
 
-  p->addr = pg_round_down(vaddr);
-  p->swap_ofs = (block_sector_t) -1;
-  p->writable = writable;
-  p->owner = thread_current();
+  pte->addr = pg_round_down(vaddr);
+  pte->swap_ofs = (block_sector_t) -1;
+  pte->writable = writable;
+  pte->owner = thread_current();
 
-  if(hash_insert(thread_current()->my_page, &elem) != NULL){
-    free(p);
-    p = NULL;
+  if(hash_insert(thread_current()->my_pages, &pte->elem) != NULL){
+    free(pte);
+    pte = NULL;
   }
 
-  return p;
+  return pte;
 }
 
 struct pte* get_pte(void *addr){
-  if(is_kernel_address(addr)) return NULL;
+  if(is_kernel_vaddr(addr)) return NULL;
 
-  struct pte p;
+  struct pte pte;
   struct hash_elem *e;
 
-  p.addr = pg_round_down(addr);
-  e = hash_find(thread_current()->my_page, &p.hash_elem);
+  pte.addr = pg_round_down(addr);
+  e = hash_find(thread_current()->my_pages, &pte.elem);
   if(e != NULL)
-    return hash_entry(e, struct pte, hash_elem);
+    return hash_entry(e, struct pte, elem);
 
   return NULL;
 }
 
 bool push_page(void *fault_addr){
-  struct pte *p;
+  struct pte *pte;
   bool success;
 
-  p = get_pte(fault_addr);
-  if(p == NULL) return false;
+  pte = get_pte(fault_addr);
+  if(pte == NULL) return false;
 
   //if page is not mapped
   //allocate new frame
-  if(p->frame == NULL){
-    p->frame = alloc_frame(p);
-    if(f == NULL) return false;
+  if(pte->frame == NULL){
+    pte->frame = alloc_frame(pte);
+    if(pte->frame == NULL) return false;
 
-    if(p->swap_ofs != -1){
+    if(pte->swap_ofs != (block_sector_t)-1){
     // if frame's contents are in swap disk
 
-      write_from_disk(p);
+      write_from_disk(pte);
     }
     else{
-      memset(p->frame->addr, 0, PGSIZE);
+      memset(pte->frame->addr, 0, PGSIZE);
     }
   }
 
   //mapping frame with page table
-  success = pagedir_set_page(thread_current()->pagedir, p->addr, 
-		  p->frame->addr, p->writable);
+  success = pagedir_set_page(thread_current()->pagedir, pte->addr, 
+		  pte->frame->addr, pte->writable);
   return success;
 }
 
@@ -82,20 +84,14 @@ bool evict_page(struct pte *pte){
   return success;
 }
 
-uint32_t get_pte_info(uint32_t *pd, struct pte* pte){
-  uint32_t *pde = pd + pd_no(pte->addr);
-  uint32_t *pt = pde_get_pt(*pde);
-  return pt[pt_no(pte->addr)];
-}
-
 uint32_t page_hash(const struct hash_elem *e, void *aux){
-  struct page *p = hash_entry(e, struct page, hash_elem);
-  return ((uint32_t*)p->addr) >> PGBITS;
+  struct pte *p = hash_entry(e, struct pte, elem);
+  return ((uint32_t)p->addr) >> PGBITS;
 }
 
 bool page_less(const struct hash_elem *a, const struct hash_elem *b, void *aux){
-  struct page *ap = hash_entry(a, struct page, hash_elem);
-  struct page *bp = hash_entry(b, struct page, hash_elem);
+  struct pte *ap = hash_entry(a, struct pte, elem);
+  struct pte *bp = hash_entry(b, struct pte, elem);
 
   return ap->addr < bp->addr;
 }

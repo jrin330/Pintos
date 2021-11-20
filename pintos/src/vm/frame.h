@@ -2,6 +2,7 @@
 #define VM_FRAME_H
 
 #include <stdbool.h>
+#include <hash.h>
 
 //physical page
 struct frame{
