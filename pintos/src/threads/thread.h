@@ -13,7 +13,7 @@
 #include "threads/palloc.h"
 #include "threads/switch.h"
 #include "threads/vaddr.h"
-
+#include <hash.h>
 
 #ifndef USERPROG
 extern bool thread_prior_aging;
@@ -119,6 +119,9 @@ struct thread
 
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    struct hash *my_pages;
+
+
     struct semaphore child_done;
     struct semaphore removal_complete;
     struct semaphore child_load;
