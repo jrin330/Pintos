@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <hash.h>
+#include <debug.h>
 
 //physical page
 struct frame{
@@ -11,6 +12,14 @@ struct frame{
   struct hash_elem elem;
 };
 
-extern struct hash *all_frame;
-struct frame* alloc_frame(struct pte* pte);
+
+void init_frame(void);
+
+struct frame* allocate_frame(struct pte* pte);
+struct frame* rotate_frame(struct hash_iterator *i);
+
+
+unsigned frame_hash(const struct hash_elem *e, void *aux UNUSED);
+bool frame_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
+
 #endif

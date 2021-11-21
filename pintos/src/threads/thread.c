@@ -14,6 +14,9 @@
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
+#include "vm/frame.h"
+#include "vm/page.h"
+#include "vm/swap.h"
 
 #ifndef USERPROG
 bool thread_prior_aging;
@@ -98,6 +101,10 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
   list_init (&block_list);
+#ifdef VM
+  init_frame();
+  disk_init();
+#endif
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -610,6 +617,8 @@ init_thread (struct thread *t, const char *name, int priority)
 
   for(int i=0;i<128;i++)
     t->fd_table[i] = NULL;
+
+  hash_init(&t->my_pages, page_hash, page_less, NULL);
 #endif
   t->orig_priority = priority;
   t->waited_lock = NULL;

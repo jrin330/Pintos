@@ -202,11 +202,9 @@ lock_acquire (struct lock *lock)
     lock->holder = thread_current();
     return;
   }
-
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
-
   struct thread *cur = thread_current();
   if(lock->holder != NULL){
     cur->waited_lock = lock;
@@ -298,7 +296,6 @@ bool
 lock_held_by_current_thread (const struct lock *lock) 
 {
   ASSERT (lock != NULL);
-
   return lock->holder == thread_current ();
 }
 

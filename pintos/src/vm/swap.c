@@ -6,12 +6,13 @@
 #include "vm/page.h"
 #include "threads/vaddr.h"
 #include "threads/thread.h"
+#include "userprog/pagedir.h"
 
-struct block *swap_disk;
-struct bitmap *swap_bitmap;
+static struct block *swap_disk;
+static struct bitmap *swap_bitmap;
 #define PGSEC (PGSIZE / BLOCK_SECTOR_SIZE)
 
-struct hash_iterator *clock;
+static struct hash_iterator *clock;
 
 void disk_init(void){
   swap_disk = block_get_role(BLOCK_SWAP);
@@ -40,8 +41,20 @@ bool write_to_disk(struct pte *pte){
   return true;
 }
 
-struct frame* get_frame_by_lru(struct hash *h){
+void clock_init(struct hash *f){
+  hash_first(clock, f);
+}
 
+struct frame* get_frame_by_lru(void){
+  while(1){
+    struct frame *f = rotate_frame(clock);
+    struct pte *pte = f->pte;
+
+    if(pagedir_is_accessed(pte->owner->pagedir, pte->addr))
+      pagedir_set_accessed(pte->owner->pagedir, pte->addr, false);
+    else
+      return f;
+  }
 
 
 }

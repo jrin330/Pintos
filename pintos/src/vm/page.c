@@ -21,7 +21,7 @@ struct pte* add_pte(void *vaddr, bool writable){
   pte->writable = writable;
   pte->owner = thread_current();
 
-  if(hash_insert(thread_current()->my_pages, &pte->elem) != NULL){
+  if(hash_insert(&thread_current()->my_pages, &pte->elem) != NULL){
     free(pte);
     pte = NULL;
   }
@@ -36,24 +36,19 @@ struct pte* get_pte(void *addr){
   struct hash_elem *e;
 
   pte.addr = pg_round_down(addr);
-  e = hash_find(thread_current()->my_pages, &pte.elem);
+  e = hash_find(&thread_current()->my_pages, &pte.elem);
   if(e != NULL)
     return hash_entry(e, struct pte, elem);
 
   return NULL;
 }
 
-bool push_page(void *fault_addr){
-  struct pte *pte;
+bool push_page(struct pte* pte){
   bool success;
-
-  pte = get_pte(fault_addr);
-  if(pte == NULL) return false;
-
   //if page is not mapped
   //allocate new frame
   if(pte->frame == NULL){
-    pte->frame = alloc_frame(pte);
+    pte->frame = allocate_frame(pte);
     if(pte->frame == NULL) return false;
 
     if(pte->swap_ofs != (block_sector_t)-1){
@@ -69,6 +64,7 @@ bool push_page(void *fault_addr){
   //mapping frame with page table
   success = pagedir_set_page(thread_current()->pagedir, pte->addr, 
 		  pte->frame->addr, pte->writable);
+  pagedir_set_accessed(thread_current()->pagedir, pte->addr, true);
   return success;
 }
 
@@ -78,20 +74,29 @@ bool evict_page(struct pte *pte){
   bool is_dirty = pagedir_is_dirty(pte->owner->pagedir, pte->addr);
 
   bool success = write_to_disk(pte);
-
-  if(success) pte->frame = NULL;
-
+  if(success) {
+    pte->frame = NULL;
+  }
   return success;
 }
 
-uint32_t page_hash(const struct hash_elem *e, void *aux){
+uint32_t page_hash(const struct hash_elem *e, void *aux UNUSED){
   struct pte *p = hash_entry(e, struct pte, elem);
   return ((uint32_t)p->addr) >> PGBITS;
 }
 
-bool page_less(const struct hash_elem *a, const struct hash_elem *b, void *aux){
+bool page_less(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED){
   struct pte *ap = hash_entry(a, struct pte, elem);
   struct pte *bp = hash_entry(b, struct pte, elem);
 
   return ap->addr < bp->addr;
+}
+
+bool is_stack_growable(void *addr, uint32_t *esp){
+  if(PHYS_BASE - pg_round_down(addr) > MAX_STACK_SIZE)
+    return false;
+  if((uint32_t*)addr < (esp - 32))
+    return false;
+
+  return true;
 }

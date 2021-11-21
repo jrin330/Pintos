@@ -92,11 +92,9 @@ malloc (size_t size)
   struct desc *d;
   struct block *b;
   struct arena *a;
-
   /* A null pointer satisfies a request for 0 bytes. */
   if (size == 0)
     return NULL;
-
   /* Find the smallest descriptor that satisfies a SIZE-byte
      request. */
   for (d = descs; d < descs + desc_cnt; d++)
@@ -110,7 +108,6 @@ malloc (size_t size)
       a = palloc_get_multiple (0, page_cnt);
       if (a == NULL)
         return NULL;
-
       /* Initialize the arena to indicate a big block of PAGE_CNT
          pages, and return it. */
       a->magic = ARENA_MAGIC;
@@ -125,7 +122,6 @@ malloc (size_t size)
   if (list_empty (&d->free_list))
     {
       size_t i;
-
       /* Allocate a page. */
       a = palloc_get_page (0);
       if (a == NULL) 
@@ -144,7 +140,6 @@ malloc (size_t size)
           list_push_back (&d->free_list, &b->free_elem);
         }
     }
-
   /* Get a block from free list and return it. */
   b = list_entry (list_pop_front (&d->free_list), struct block, free_elem);
   a = block_to_arena (b);

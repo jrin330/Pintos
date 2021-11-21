@@ -17,6 +17,10 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "userprog/syscall.h"
+#include "vm/page.h"
+#include "vm/frame.h"
+#include "vm/swap.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -43,6 +47,7 @@ bool load_success;
 tid_t
 process_execute (const char *file_name) 
 {
+	printf("process_execute enter\n");
   char *fn_copy;
   tid_t tid;
   /* Make a copy of FILE_NAME.
