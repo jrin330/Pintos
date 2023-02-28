@@ -4,21 +4,14 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "threads/flags.h"
 #include "threads/synch.h"
 #include "threads/fixed_point.h"
 #include "devices/timer.h"
-#include "threads/interrupt.h"
-#include "threads/intr-stubs.h"
-#include "threads/palloc.h"
-#include "threads/switch.h"
-#include "threads/vaddr.h"
-#include <hash.h>
+#include "lib/kernel/list.h"
 
 #ifndef USERPROG
 extern bool thread_prior_aging;
 #endif
-extern fixed load_avg;
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -119,9 +112,6 @@ struct thread
 
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-    struct hash my_pages;
-
-
     struct semaphore child_done;
     struct semaphore removal_complete;
     struct semaphore child_load;

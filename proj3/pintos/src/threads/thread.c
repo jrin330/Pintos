@@ -11,17 +11,15 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/fixed_point.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
-#include "vm/frame.h"
-#include "vm/page.h"
-#include "vm/swap.h"
 
 #ifndef USERPROG
 bool thread_prior_aging;
-#endif
 fixed load_avg;
+#endif
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -101,10 +99,6 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
   list_init (&block_list);
-#ifdef VM
-  init_frame();
-  disk_init();
-#endif
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -121,8 +115,8 @@ thread_start (void)
   /* Create the idle thread. */
   struct semaphore idle_started;
   sema_init (&idle_started, 0);
-  load_avg = 0;
   thread_create ("idle", PRI_MIN, idle, &idle_started);
+  load_avg = 0;
 
   /* Start preemptive thread scheduling. */
   intr_enable ();
@@ -243,12 +237,14 @@ thread_block (void)
 void
 thread_sleep(int64_t tick){
   struct thread *cur = thread_current();
+  enum intr_level old_level = intr_disable();
 
   if(cur == idle_thread) return ;
-  enum intr_level old_level = intr_disable();
+
   cur->blocked_time = tick;
   list_push_back(&block_list, &cur->elem);
   thread_block();
+
   intr_set_level(old_level);
 
 }
@@ -264,13 +260,15 @@ thread_sleep(int64_t tick){
 void
 thread_unblock (struct thread *t) 
 {
+  enum intr_level old_level;
+
   ASSERT (is_thread (t));
 
-  enum intr_level old_level = intr_disable();
+  old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
   list_insert_ordered(&ready_list, &t->elem, compare_priority_by_elem, NULL);
   t->status = THREAD_READY;
-  intr_set_level(old_level);
+  intr_set_level (old_level);
 }
 
 void
@@ -403,13 +401,12 @@ void thread_aging(void){
       coeffi[0] = div_btw_fixed(int_to_fixed(59), int_to_fixed(60));
       coeffi[1] = div_btw_fixed(int_to_fixed(1), int_to_fixed(60));
       load_avg = mult_btw_fixed(coeffi[0], load_avg);
-      int weight=0;
-      if(thread_current() == idle_thread){
+      int weight;
+      if(thread_current() == idle_thread)
         weight = list_size(&ready_list);
-      }
-      else{
+      else
 	weight = list_size(&ready_list) + 1;
-      }
+
       load_avg = add_btw_fixed(load_avg, mult_btw_diff(coeffi[1], weight));
       thread_foreach(set_new_recent_cpu, NULL);
     }
@@ -481,12 +478,17 @@ int
 thread_get_recent_cpu (void) 
 {
   /* Not yet implemented. */
-  return fixed_to_int(mult_btw_diff(thread_current()->recent_cpu, 100));
+  enum intr_level old_level = intr_disable();
+  int tmp = fixed_to_int(mult_btw_diff(thread_current()->recent_cpu, 100));
+  intr_set_level(old_level);
+
+  return tmp;
 }
 
 void
 set_new_recent_cpu(struct thread *t, void *aux UNUSED){
   if(t == idle_thread) return;
+
   fixed coeffi[2];
   fixed tmp = mult_btw_diff(load_avg, 2);
   coeffi[0] = tmp;
@@ -601,24 +603,22 @@ init_thread (struct thread *t, const char *name, int priority)
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
   t->nice = 0;
-  t->recent_cpu = int_to_fixed(0);
+  t->recent_cpu = 0;
 #ifdef USERPROG
   list_init(&t->child_list);
-  list_push_back(&(running_thread()->child_list), &t->child_elem);
+  list_push_back(&(running_thread()->child_list), *t->child_elem);
   t->parent = running_thread();
   if(t->parent != NULL){
     t->nice = t->parent->nice;
     t->recent_cpu = t->parent->recent_cpu;
   }
   t->exit_status = 0;
-  sema_init(&t->child_done, 0);
+  sema_init((&t->child_done), 0);
   sema_init(&t->removal_complete, 0);
   sema_init(&t->child_load, 0);
 
   for(int i=0;i<128;i++)
     t->fd_table[i] = NULL;
-
-  hash_init(&t->my_pages, page_hash, page_less, NULL);
 #endif
   t->orig_priority = priority;
   t->waited_lock = NULL;

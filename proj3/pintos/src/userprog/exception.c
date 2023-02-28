@@ -4,9 +4,6 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-#include "vm/page.h"
-#include "vm/frame.h"
-#include "vm/swap.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -151,31 +148,8 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  printf("page fault occur\n");
-  if(user || not_present){
-    struct pte pte;
-    pte.addr = pg_round_down(fault_addr);
-    struct hash_elem *e = hash_find(&thread_current()->my_pages, &pte.elem);
-
-    //already in page table
-    if(e != NULL){
-      struct pte* cur = hash_entry(e, struct pte, elem);
-      if(push_page(cur)){
-	return;
-      }
-    }
-    else{
-      if(is_stack_growable(fault_addr, f->esp)){
-	void *base = PHYS_BASE;
-        while(base > fault_addr){
-	  add_pte(base, true);
-	  base -= PGSIZE;
-	}
-	return;
-      }
-    }
-  }
-        
+  if(!user || not_present || !is_user_vaddr(fault_addr))
+        exit(-1);
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to

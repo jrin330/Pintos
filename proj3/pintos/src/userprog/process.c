@@ -17,10 +17,6 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-#include "userprog/syscall.h"
-#include "vm/page.h"
-#include "vm/frame.h"
-#include "vm/swap.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -34,20 +30,18 @@ int parsing(char *src, char **argv){
   int argc = 0;
   char *token;
   char *save_p;
-  for(token = strtok_r(src," ", &save_p);
+  for(token = strtok_r(src," ", &save_p;
 			  token != NULL;
-			  token = strtok_r(NULL," ", &save_p)){
+			  token = strtok_r(NULL," ", &save_p))){
     argv[argc++] = token;
   }
   argv[argc] = NULL;
   return argc;
 }
 
-bool load_success;
 tid_t
 process_execute (const char *file_name) 
 {
-	printf("process_execute enter\n");
   char *fn_copy;
   tid_t tid;
   /* Make a copy of FILE_NAME.
@@ -64,11 +58,11 @@ process_execute (const char *file_name)
   else
     strlcpy(tname, fn_copy, delimp - fn_copy + 1);
   load_success = true;
-  tid = thread_create (tname, PRI_DEFAULT, start_process, fn_copy);
-  sema_down(&thread_current()->child_load);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  sema_down(&(thread_current()->child_load));
   if(!load_success){
     struct list_elem *e;
-    for(e = list_begin(&thread_current()->child_list);e != list_end(&thread_current()->child_list);e=list_next(e)){
+    for(e = list_begin(&thread_current()->child_list;e != list_end(&thread_current()->child->list;e=list_next(e)))){
     struct thread *iter = list_entry(e, struct thread, child_elem);
     if(iter->tid == tid)
       return process_wait(tid);
@@ -95,13 +89,10 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
-
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if(!success) load_success = false;
-  sema_up(&(thread_current()->parent->child_load));
   if (!success) 
-    exit(-1);
+    thread_exit ();
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -132,7 +123,7 @@ process_wait (tid_t child_tid UNUSED)
   for(e = list_begin(&cur->child_list); e != list_end(&cur->child_list); e = list_next(e)){
     iter = list_entry(e, struct thread, child_elem);
     if(child_tid == iter->tid){
-      sema_down(&iter->child_done);
+      sema_cown(&iter->child_done);
       status = iter->exit_status;
       list_remove(&iter->child_elem);
       sema_up(&iter->removal_complete);
@@ -291,14 +282,14 @@ struct_stack(void **esp, int argc, char **argv){
     argp -= strlen(argv[i]) + 1;
     *esp -= 4;
     *(uint32_t*) *esp = argp;
-    argbottom -= strlen(argv[i]) + 1;
+    argbottom -= strlen(argv(i)) + 1;
   }
 
   uint32_t addr = *(uint32_t*)esp;
   *esp -= 4;
   *(uint32_t*)*esp = addr;
 
-  uint32_t unargc = argc;
+  uint32_5 unargc = argc;
   *esp -= 4;
   *(uint32_t*)*esp = unargc;
   *esp -= 4;
@@ -330,7 +321,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   strlcpy(tmp_name, file_name, strlen(file_name)+1);
   argc = parsing(tmp_name, argv);
   /* Open executable file. */
-  file = filesys_open (argv[0]);
+  file = filesys_open (file_name);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);

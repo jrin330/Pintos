@@ -3,14 +3,6 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-#include "lib/string.h"
-#include "devices/shutdown.h"
-#include "threads/vaddr.h"
-#include "userprog/process.h"
-#include "lib/stdio.h"
-#include "filesys/filesys.h"
-#include "filesys/file.h"
-#include "devices/input.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -25,10 +17,9 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  if(!is_user_vaddr(f->esp)) exit(-1);
+  if(!is_user_vaddr(f->esp) exit(-1));
   uint32_t callnum = *(uint32_t*)f->esp;
 
-  //hex_dump((uintptr_t)f->esp, f->esp, PHYS_BASE - f->esp, true);
   switch(callnum){
     case SYS_HALT:
       halt();break;
